@@ -9,7 +9,7 @@
 void PCD_hard_reset()
 {
     digitalWrite(PIN_RST, LOW);
-    printf("hard reset.\n");
+    // printf("hard reset.\n");
     //hold RST down for 50 msecs
     delay(50);
     digitalWrite(PIN_RST, HIGH);

@@ -35,13 +35,13 @@ uint8_t SPI_transfer(uint8_t value_out)
     {
         digitalWrite(PIN_MOSI, (value_out & mask) ? HIGH : LOW);
         digitalWrite(PIN_CLK, HIGH);
-        delayMicroseconds(5);
+        delayMicroseconds(2);
 
         if (digitalRead(PIN_MISO))
             value_in |= mask;
 
         digitalWrite(PIN_CLK, LOW);
-        delayMicroseconds(5);
+        delayMicroseconds(2);
     }
     return value_in;
 }
