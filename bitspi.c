@@ -25,10 +25,12 @@ void SPI_deinit(void)
 void SPI_begin_transaction()
 {
     digitalWrite(PIN_SS, LOW);
+    delayMicroseconds(10);
 }
 
 void SPI_end_transaction()
 {
+    delayMicroseconds(10);
     digitalWrite(PIN_SS, HIGH);
 }
 
@@ -44,13 +46,13 @@ uint8_t SPI_transfer(uint8_t value_out)
     {
         digitalWrite(PIN_MOSI, (value_out & mask) ? HIGH : LOW);
         digitalWrite(PIN_CLK, HIGH);
-        delayMicroseconds(3);
+        delayMicroseconds(2);
 
         if (digitalRead(PIN_MISO))
             value_in |= mask;
 
         digitalWrite(PIN_CLK, LOW);
-        delayMicroseconds(3);
+        delayMicroseconds(2);
     }
     return value_in;
 }
