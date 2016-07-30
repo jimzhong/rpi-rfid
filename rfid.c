@@ -203,7 +203,7 @@ int PICC_Select(
 	PCD_ClearRegisterBitMask(CollReg, 0x80);		// ValuesAfterColl=1 => Bits received after collision are cleared.
 
 	// Repeat Cascade Level loop until we have a complete UID.
-	uidComplete = TRUE;
+	uidComplete = FALSE;
 	while (!uidComplete) {
         printf("cascadeLevel = %u\n", cascadeLevel);
 		// Set the Cascade Level in the SEL byte, find out if we need to use the Cascade Tag in byte 2.
@@ -259,6 +259,7 @@ int PICC_Select(
 		// Repeat anti collision loop until we can transmit all UID bits + BCC and receive a SAK - max 32 iterations.
 		selectDone = FALSE;
 		while (!selectDone) {
+            printf("selecting.\n");
 			// Find out how many bits and bytes to send and receive.
 			if (currentLevelKnownBits >= 32) { // All UID bits in this Cascade Level are known. This is a SELECT.
 				//Serial.print(F("SELECT: currentLevelKnownBits=")); Serial.println(currentLevelKnownBits, DEC);
