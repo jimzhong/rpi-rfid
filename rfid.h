@@ -71,7 +71,7 @@ int PICC_REQA_or_WUPA(
 int PICC_RequestA(
     byte *bufferATQA,	///< The buffer to store the ATQA (Answer to request) in
 	byte *bufferSize	///< Buffer size, at least two bytes. Also number of bytes returned if STATUS_OK.
-)
+);
 
 
 //Low level functions
