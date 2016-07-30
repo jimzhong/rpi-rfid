@@ -10,7 +10,18 @@
 #define PIN_SS      19
 #define PIN_CLK     21
 
+void SPI_init(void);
+void SPI_deinit(void);
+
+void SPI_begin_transaction();
+void SPI_end_transaction();
+uint8_t SPI_transfer(uint8_t value_out);
+
+#endif
+
 /*
+                            Pin layout for RPi 3
+
 +-----+-----+---------+------+---+---Pi 3---+---+------+---------+-----+-----+
 | BCM | wPi |   Name  | Mode | V | Physical | V | Mode | Name    | wPi | BCM |
 +-----+-----+---------+------+---+----++----+---+------+---------+-----+-----+
@@ -38,10 +49,3 @@
 | BCM | wPi |   Name  | Mode | V | Physical | V | Mode | Name    | wPi | BCM |
 +-----+-----+---------+------+---+---Pi 3---+---+------+---------+-----+-----+
 */
-
-void SPI_init(void);
-void SPI_begin_transaction();
-void SPI_end_transaction();
-uint8_t SPI_transfer(uint8_t value_out);
-
-#endif

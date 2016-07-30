@@ -15,5 +15,6 @@ int main()
     PCD_init();
     version = PCD_version();
     printf("Version: %x\n", version);
+    PCD_deinit();
     return 0;
 }

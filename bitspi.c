@@ -13,6 +13,15 @@ void SPI_init(void)
     digitalWrite(PIN_MOSI, LOW);
 }
 
+
+void SPI_deinit(void)
+{
+    pinMode(PIN_SS, INPUT);
+    pinMode(PIN_MISO, INPUT);
+    pinMode(PIN_MOSI, INPUT);
+    pinMode(PIN_CLK, INPUT);
+}
+
 void SPI_begin_transaction()
 {
     digitalWrite(PIN_SS, LOW);

@@ -93,6 +93,13 @@ void PCD_init()
     PCD_AntennaOn();
 }
 
+void PCD_deinit()
+{
+    SPI_deinit();
+    digitalWrite(PIN_RST, LOW);
+    pinMode(PIN_RST, INPUT);
+}
+
 uint8_t PCD_version()
 {
     return PCD_ReadRegister(VersionReg);

@@ -7,6 +7,7 @@
 
 //High level functions
 void PCD_init();
+void PCD_deinit();
 uint8_t PCD_version();
 
 
