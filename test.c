@@ -11,11 +11,6 @@ void print_hex(uint8_t *buf, uint8_t len)
     printf("\n");
 }
 
-void print_uid(Uid uid)
-{
-    printf("%lx\n", (*((uint32_t *)uid.uidByte)));
-}
-
 int main()
 {
     uint8_t version;
@@ -33,7 +28,7 @@ int main()
     {
         if (PICC_IsNewCardPresent() && (PICC_Select(&card, 0) == STATUS_OK))
         {
-            printf("newcard: %lx\n", (*((unsigned long *)uid.uidByte)));
+            printf("newcard: %lx\n", (*((unsigned long *)card.uidByte)));
         }
         delay(100);
     }
