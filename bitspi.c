@@ -39,6 +39,7 @@ void SPI_end_transaction()
 /*
 Transfer a byte to SPI with CPOH=CPOA=0
 MSB first, return data on MISO
+https://en.wikipedia.org/wiki/Serial_Peripheral_Interface_Bus#Example_of_bit-banging_the_master_protocol
 */
 uint8_t SPI_transfer(uint8_t value_out)
 {
@@ -47,14 +48,14 @@ uint8_t SPI_transfer(uint8_t value_out)
     for (mask = 0x80; mask; mask >>= 1)
     {
         digitalWrite(PIN_MOSI, (value_out & mask) ? HIGH : LOW);
-        digitalWrite(PIN_CLK, HIGH);
         delayMicroseconds(2);
+        digitalWrite(PIN_CLK, HIGH);
 
         if (digitalRead(PIN_MISO))
             value_in |= mask;
 
-        digitalWrite(PIN_CLK, LOW);
         delayMicroseconds(2);
+        digitalWrite(PIN_CLK, LOW);
     }
     return value_in;
 }
