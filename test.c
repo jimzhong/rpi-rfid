@@ -12,9 +12,9 @@ int main()
         printf("GPIO init failed.\n");
         exit(-1);
     }
-    PCD_init();
-    version = PCD_version();
+    PCD_Init();
+    version = PCD_Version();
     printf("Version: %x\n", version);
-    PCD_deinit();
+    PCD_Deinit();
     return 0;
 }
