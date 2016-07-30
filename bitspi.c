@@ -44,7 +44,7 @@ https://en.wikipedia.org/wiki/Serial_Peripheral_Interface_Bus#Example_of_bit-ban
 uint8_t SPI_transfer(uint8_t value_out)
 {
     uint8_t mask;
-    uint8_t value_in;
+    uint8_t value_in = 0;
     for (mask = 0x80; mask; mask >>= 1)
     {
         digitalWrite(PIN_MOSI, (value_out & mask) ? HIGH : LOW);
