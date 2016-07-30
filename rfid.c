@@ -73,10 +73,10 @@ void PCD_AntennaOff()
 
 void PCD_init()
 {
-    pinMode(PIN_SS, OUTPUT);
+    SPI_init();
+
     pinMode(PIN_RST, OUTPUT);
     //do not select the chip for now
-    digitalWrite(PIN_SS, HIGH);
     PCD_hard_reset();
 
     //configure a timeout of 25ms
