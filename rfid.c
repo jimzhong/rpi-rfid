@@ -15,13 +15,15 @@ void PCD_HardReset()
     digitalWrite(PIN_RST, HIGH);
 }
 
-void PCD_SoftReset()
+
+void PCD_Reset()
 {
     PCD_WriteRegister(CommandReg, PCD_SoftReset);
     delay(50);
     while (PCD_ReadRegister(CommandReg) & (1<<4));
 	// PCD still restarting - unlikely after waiting 50ms, but better safe than sorry.
 }
+
 
 uint8_t PCD_ReadRegister(uint8_t reg)
 {
@@ -68,7 +70,7 @@ void PCD_AntennaOn()
 
 void PCD_AntennaOff()
 {
-	PCD_clear_register_bit_mask(TxControlReg, 0x03);
+	PCD_ClearRegisterBitMask(TxControlReg, 0x03);
 }
 
 void PCD_init()
@@ -106,7 +108,7 @@ uint8_t PCD_Version()
 }
 
 int PICC_Select(
-    uid_t *uid,			///< Pointer to Uid struct. Normally output, but can also be used to supply a known UID.
+    Uid *uid,			///< Pointer to Uid struct. Normally output, but can also be used to supply a known UID.
 	byte validBits		///< The number of known UID bits supplied in *uid. Normally 0. If set you must also supply uid->size.
 )
 {
@@ -157,7 +159,7 @@ int PICC_Select(
 	PCD_ClearRegisterBitMask(CollReg, 0x80);		// ValuesAfterColl=1 => Bits received after collision are cleared.
 
 	// Repeat Cascade Level loop until we have a complete UID.
-	uidComplete = false;
+	uidComplete = TRUE;
 	while (!uidComplete) {
 		// Set the Cascade Level in the SEL byte, find out if we need to use the Cascade Tag in byte 2.
 		switch (cascadeLevel) {
@@ -176,7 +178,7 @@ int PICC_Select(
 			case 3:
 				buffer[0] = PICC_CMD_SEL_CL3;
 				uidIndex = 6;
-				useCascadeTag = false;						// Never used in CL3.
+				useCascadeTag = FALSE;						// Never used in CL3.
 				break;
 
 			default:
@@ -210,7 +212,7 @@ int PICC_Select(
 		}
 
 		// Repeat anti collision loop until we can transmit all UID bits + BCC and receive a SAK - max 32 iterations.
-		selectDone = false;
+		selectDone = FALSE;
 		while (!selectDone) {
 			// Find out how many bits and bytes to send and receive.
 			if (currentLevelKnownBits >= 32) { // All UID bits in this Cascade Level are known. This is a SELECT.
@@ -270,7 +272,7 @@ int PICC_Select(
 			}
 			else { // STATUS_OK
 				if (currentLevelKnownBits >= 32) { // This was a SELECT.
-					selectDone = true; // No more anticollision
+					selectDone = TRUE; // No more anticollision
 					// We continue below outside the while.
 				}
 				else { // This was an ANTICOLLISION.
@@ -306,7 +308,7 @@ int PICC_Select(
 			cascadeLevel++;
 		}
 		else {
-			uidComplete = true;
+			uidComplete = TRUE;
 			uid->sak = responseBuffer[0];
 		}
 	} // End of while (!uidComplete)
@@ -327,11 +329,11 @@ int PCD_CalculateCRC(
 	PCD_WriteRegister(CommandReg, PCD_Idle);		// Stop any active command.
 	PCD_WriteRegister(DivIrqReg, 0x04);				// Clear the CRCIRq interrupt request bit
 	PCD_SetRegisterBitMask(FIFOLevelReg, 0x80);		// FlushBuffer = 1, FIFO initialization
-	PCD_WriteRegister(FIFODataReg, length, data);	// Write data to the FIFO
+	PCD_WriteRegisterFromBuffer(FIFODataReg, length, data);	// Write data to the FIFO
 	PCD_WriteRegister(CommandReg, PCD_CalcCRC);		// Start the calculation
 
 	// Wait for the CRC calculation to complete. Each iteration of the while-loop takes 17.73�s.
-	word i = 5000;
+	int i = 5000;
 	byte n;
 	while (1) {
 		n = PCD_ReadRegister(DivIrqReg);	// DivIrqReg[7..0] bits are: Set2 reserved reserved MfinActIRq reserved CRCIRq reserved reserved
@@ -434,7 +436,7 @@ int PCD_CommunicateWithPICC(
 		}
 		// Verify CRC_A - do our own calculation and store the control in controlBuffer.
 		byte controlBuffer[2];
-		MFRC522::StatusCode status = PCD_CalculateCRC(&backData[0], *backLen - 2, &controlBuffer[0]);
+		int status = PCD_CalculateCRC(&backData[0], *backLen - 2, &controlBuffer[0]);
 		if (status != STATUS_OK) {
 			return status;
 		}
@@ -447,7 +449,7 @@ int PCD_CommunicateWithPICC(
 } // End PCD_CommunicateWithPICC()
 
 
-PCD_TransceiveData(
+int PCD_TransceiveData(
     byte *sendData,		///< Pointer to the data to transfer to the FIFO.
 	byte sendLen,		///< Number of bytes to transfer to the FIFO.
 	byte *backData,		///< NULL or pointer to buffer if data should be read back after executing the command.

@@ -4,6 +4,8 @@
 #include <stdint.h>
 
 #define PIN_RST  26
+#define FALSE 0
+#define TRUE  1
 
 typedef uint8_t byte;
 typedef uint8_t bool;
@@ -12,21 +14,24 @@ typedef struct {
     byte		size;			// Number of bytes in the UID. 4, 7 or 10.
     byte		uidByte[10];
     byte		sak;			// The SAK (Select acknowledge) byte returned from the PICC after successful selection.
-} uid_t;
+} Uid;
 
 //High level functions
 void PCD_Init();
 void PCD_Deinit();
 uint8_t PCD_Version();
 
-int PICC_Select(uid_t *uid);
+int PICC_Select(
+    Uid *uid,			///< Pointer to Uid struct. Normally output, but can also be used to supply a known UID.
+	byte validBits		///< The number of known UID bits supplied in *uid. Normally 0. If set you must also supply uid->size.
+);
 
 //Mid level functions
 void PCD_AntennaOn();
 void PCD_AntennaOff();
 
 void PCD_HardReset();
-void PCD_SoftReset();
+void PCD_Reset();
 
 int PCD_CalculateCRC(
     byte *data,		///< In: Pointer to the data to transfer to the FIFO for CRC calculation.
@@ -47,7 +52,7 @@ int PCD_CommunicateWithPICC(
 	bool checkCRC		///< In: True => The last two bytes of the response is assumed to be a CRC_A that must be validated.
 );
 
-PCD_TransceiveData(
+int PCD_TransceiveData(
     byte *sendData,		///< Pointer to the data to transfer to the FIFO.
 	byte sendLen,		///< Number of bytes to transfer to the FIFO.
 	byte *backData,		///< NULL or pointer to buffer if data should be read back after executing the command.
