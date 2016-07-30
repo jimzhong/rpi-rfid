@@ -330,7 +330,7 @@ int PICC_Select(
 			}
 		} // End of while (!selectDone)
 
-        printf("select done\n");
+        // printf("select done\n");
 
 		// We do not check the CBB - it was constructed by us above.
 
@@ -362,7 +362,7 @@ int PICC_Select(
 		}
 	} // End of while (!uidComplete)
 
-    printf("uid complete.\n");
+    // printf("uid complete.\n");
 
 	// Set correct uid->size
 	uid->size = 3 * cascadeLevel + 1;
