@@ -9,7 +9,7 @@ int main()
     uint8_t version;
     if (wiringPiSetupGpio() == -1);
     {
-        printf("GPIO init failed.\n", );
+        printf("GPIO init failed.\n");
         exit(-1);
     }
     PCD_init();
