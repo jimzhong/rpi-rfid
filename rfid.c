@@ -44,16 +44,17 @@ void PCD_ReadRegisterToBuffer(uint8_t reg, uint8_t len, uint8_t *buf, uint8_t rx
     if (len == 0)
 		return;
     SPI_begin_transaction();
-	count--;								// One read is performed outside of the loop
+	len--;								// One read is performed outside of the loop
 	SPI_transfer(address);					// Tell MFRC522 which address we want to read
 
-	while (index < count)
+	while (index < len)
     {
 		if (index == 0 && rxAlign)
         {	// Only update bit positions rxAlign..7 in values[0]
 			// Create bit mask for bit positions rxAlign..7
 			byte mask = 0;
-			for (byte i = rxAlign; i <= 7; i++)
+            byte i;
+			for (i = rxAlign; i <= 7; i++)
 				mask |= (1 << i);
 
 			// Read value and tell that we want to read the same address again.
