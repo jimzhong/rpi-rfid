@@ -2,6 +2,8 @@
 
 #define __BITSPI_H__
 
+#include <stdint.h>
+
 //Use BCM pin numbering
 #define PIN_MISO    16
 #define PIN_MOSI    20
@@ -37,6 +39,9 @@
 +-----+-----+---------+------+---+---Pi 3---+---+------+---------+-----+-----+
 */
 
-
+void SPI_init(void);
+void SPI_begin_transaction();
+void SPI_end_transaction();
+uint8_t SPI_transfer(uint8_t value_out);
 
 #endif

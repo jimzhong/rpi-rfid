@@ -1,6 +1,7 @@
 #ifndef __RFID_H__
-
 #define __RFID_H__
+
+#include <stdint.h>
 
 #define PIN_RST  26
 
