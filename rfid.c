@@ -36,6 +36,49 @@ uint8_t PCD_ReadRegister(uint8_t reg)
 	return value;
 }
 
+void PCD_ReadRegisterToBuffer(uint8_t reg, uint8_t len, uint8_t *buf, uint8_t rxAlign)
+{
+	byte address = 0x80 | (reg & 0x7E);		// MSB == 1 is for reading. LSB is not used in address. Datasheet section 8.1.2.3.
+	byte index = 0;							// Index in buf array.
+
+    if (len == 0)
+		return;
+    SPI_begin_transaction();
+	count--;								// One read is performed outside of the loop
+	SPI_transfer(address);					// Tell MFRC522 which address we want to read
+
+	while (index < count)
+    {
+		if (index == 0 && rxAlign)
+        {	// Only update bit positions rxAlign..7 in values[0]
+			// Create bit mask for bit positions rxAlign..7
+			byte mask = 0;
+			for (byte i = rxAlign; i <= 7; i++)
+				mask |= (1 << i);
+
+			// Read value and tell that we want to read the same address again.
+			byte value = SPI_transfer(address);
+			// Apply mask to both current value of values[0] and the new data in value.
+			buf[0] = (buf[index] & ~mask) | (value & mask);
+		}
+		else
+            // Normal case
+			buf[index] = SPI_transfer(address);	// Read value and tell that we want to read the same address again.
+
+		index++;
+	}
+    buf[index] = SPI_transfer(0);	// Read the final byte. Send 0 to stop reading.
+	SPI_end_transaction();
+}
+
+void PCD_WriteRegisterFromBuffer(uint8_t reg, uint8_t len, uint8_t *buf)
+{
+    SPI_begin_transaction();
+	SPI_transfer(reg & 0x7E);			// MSB == 1 is for reading. LSB is not used in address.
+    while (len--)
+        SPI_transfer(*(buf++));
+	SPI_end_transaction();
+}
 
 void PCD_WriteRegister(uint8_t reg, uint8_t value)
 {
@@ -73,7 +116,7 @@ void PCD_AntennaOff()
 	PCD_ClearRegisterBitMask(TxControlReg, 0x03);
 }
 
-void PCD_init()
+void PCD_Init()
 {
     SPI_init();
 
@@ -95,7 +138,7 @@ void PCD_init()
     PCD_AntennaOn();
 }
 
-void PCD_deinit()
+void PCD_Deinit()
 {
     SPI_deinit();
     digitalWrite(PIN_RST, LOW);
