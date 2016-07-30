@@ -205,6 +205,7 @@ int PICC_Select(
 	// Repeat Cascade Level loop until we have a complete UID.
 	uidComplete = TRUE;
 	while (!uidComplete) {
+        printf("cascadeLevel = %s\n", cascadeLevel);
 		// Set the Cascade Level in the SEL byte, find out if we need to use the Cascade Tag in byte 2.
 		switch (cascadeLevel) {
 			case 1:
@@ -317,7 +318,6 @@ int PICC_Select(
 			}
 			else { // STATUS_OK
 				if (currentLevelKnownBits >= 32) { // This was a SELECT.
-                    printf("select done\n");
 					selectDone = TRUE; // No more anticollision
 					// We continue below outside the while.
 				}
@@ -328,6 +328,8 @@ int PICC_Select(
 				}
 			}
 		} // End of while (!selectDone)
+
+        printf("select done\n");
 
 		// We do not check the CBB - it was constructed by us above.
 
@@ -358,6 +360,8 @@ int PICC_Select(
 			uid->sak = responseBuffer[0];
 		}
 	} // End of while (!uidComplete)
+
+    printf("uid complete.\n");
 
 	// Set correct uid->size
 	uid->size = 3 * cascadeLevel + 1;
