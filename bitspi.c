@@ -24,14 +24,16 @@ void SPI_deinit(void)
 
 void SPI_begin_transaction()
 {
+    delayMicroseconds(4);
     digitalWrite(PIN_SS, LOW);
-    delayMicroseconds(10);
+    delayMicroseconds(4);
 }
 
 void SPI_end_transaction()
 {
-    delayMicroseconds(10);
+    delayMicroseconds(4);
     digitalWrite(PIN_SS, HIGH);
+    delayMicroseconds(4);
 }
 
 /*
