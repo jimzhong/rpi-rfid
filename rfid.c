@@ -1,7 +1,7 @@
 #include <wiringPi.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+// #include <string.h>
 
 #include "rfid.h"
 #include "bitspi.h"
@@ -205,7 +205,7 @@ int PICC_Select(
 	// Repeat Cascade Level loop until we have a complete UID.
 	uidComplete = FALSE;
 	while (!uidComplete) {
-        printf("cascadeLevel = %u\n", cascadeLevel);
+        // printf("cascadeLevel = %u\n", cascadeLevel);
 		// Set the Cascade Level in the SEL byte, find out if we need to use the Cascade Tag in byte 2.
 		switch (cascadeLevel) {
 			case 1:
@@ -259,7 +259,7 @@ int PICC_Select(
 		// Repeat anti collision loop until we can transmit all UID bits + BCC and receive a SAK - max 32 iterations.
 		selectDone = FALSE;
 		while (!selectDone) {
-            printf("selecting.\n");
+            // printf("selecting.\n");
 			// Find out how many bits and bytes to send and receive.
 			if (currentLevelKnownBits >= 32) { // All UID bits in this Cascade Level are known. This is a SELECT.
 				//Serial.print(F("SELECT: currentLevelKnownBits=")); Serial.println(currentLevelKnownBits, DEC);
@@ -296,7 +296,7 @@ int PICC_Select(
 			// Transmit the buffer and receive the response.
 			result = PCD_TransceiveData(buffer, bufferUsed, responseBuffer, &responseLength, &txLastBits, rxAlign, FALSE);
 			if (result == STATUS_COLLISION) { // More than one PICC in the field => collision.
-                printf("collision found.\n");
+                // printf("collision found.\n");
 				byte valueOfCollReg = PCD_ReadRegister(CollReg); // CollReg[7..0] bits are: ValuesAfterColl reserved CollPosNotValid CollPos[4:0]
 				if (valueOfCollReg & 0x20) { // CollPosNotValid
 					return STATUS_COLLISION; // Without a valid collision position we cannot continue

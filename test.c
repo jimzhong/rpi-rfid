@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "rfid.h"
 #include <wiringPi.h>
@@ -14,7 +15,7 @@ void print_hex(uint8_t *buf, uint8_t len)
 int main()
 {
     uint8_t version;
-    Uid card;
+    Uid previous, current;
     if (wiringPiSetupGpio() == -1)
     {
         printf("GPIO init failed.\n");
@@ -24,11 +25,21 @@ int main()
     version = PCD_Version();
     printf("Version: %x\n", version);
 
+    memset(&previous, 0, sizeof(previous));
+
     while (1)
     {
-        if (PICC_IsNewCardPresent() && (PICC_Select(&card, 0) == STATUS_OK))
+        if (PICC_IsNewCardPresent() && (PICC_Select(&current, 0) == STATUS_OK))
         {
-            printf("newcard: %lx\n", (*((unsigned long *)card.uidByte)));
+            if (memcmp(previous.uidByte, current.uidByte, current.size) != 0)
+            {
+                printf("new card: %lx.\n", *(unsigned long *)current.uidByte);
+                previous = current;
+            }
+        }
+        else
+        {
+            printf("no new card.\n");
         }
         delay(100);
     }
