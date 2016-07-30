@@ -26,12 +26,12 @@ void SPI_begin_transaction()
 {
     delayMicroseconds(2);
     digitalWrite(PIN_SS, LOW);
-    // delayMicroseconds(4);
+    delayMicroseconds(2);
 }
 
 void SPI_end_transaction()
 {
-    // delayMicroseconds(4);
+    delayMicroseconds(2);
     digitalWrite(PIN_SS, HIGH);
     delayMicroseconds(2);
 }
