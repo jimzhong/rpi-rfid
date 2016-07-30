@@ -31,11 +31,8 @@ int main()
     {
         if (PICC_IsNewCardPresent() && (PICC_Select(&current, 0) == STATUS_OK))
         {
-            if (memcmp(previous.uidByte, current.uidByte, current.size) != 0)
-            {
-                printf("new card: %lx.\n", *(unsigned long *)current.uidByte);
-                previous = current;
-            }
+            printf("new card: %lx.\n", *(unsigned long *)current.uidByte);
+            PICC_HaltA();
         }
         else
         {
