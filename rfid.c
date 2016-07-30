@@ -30,14 +30,14 @@ uint8_t PCD_ReadRegister(uint8_t reg)
 	SPI_transfer(0x80 | (reg & 0x7E));			// MSB == 1 is for reading. LSB is not used in address.
 	value = SPI_transfer(0);					// Read the value back. Send 0 to stop reading.
 	SPI_end_transaction();
-    printf("read %x as %x\n", reg, value);
+    // printf("read %x as %x\n", reg, value);
 	return value;
 }
 
 
 void PCD_WriteRegister(uint8_t reg, uint8_t value)
 {
-    printf("write %x to %x.\n", value, reg);
+    // printf("write %x to %x.\n", value, reg);
     SPI_begin_transaction();
 	SPI_transfer(reg & 0x7E);			// MSB == 1 is for reading. LSB is not used in address.
     SPI_transfer(value);					// Read the value back. Send 0 to stop reading.
