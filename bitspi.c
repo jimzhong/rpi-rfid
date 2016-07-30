@@ -49,9 +49,10 @@ uint8_t SPI_transfer(uint8_t value_out)
     {
         digitalWrite(PIN_MOSI, (value_out & mask) ? HIGH : LOW);
         delayMicroseconds(2);
+
         digitalWrite(PIN_CLK, HIGH);
 
-        if (digitalRead(PIN_MISO))
+        if (digitalRead(PIN_MISO) == HIGH)
             value_in |= mask;
 
         delayMicroseconds(2);
