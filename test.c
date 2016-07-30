@@ -4,9 +4,17 @@
 #include "rfid.h"
 #include <wiringPi.h>
 
+void print_hex(uint8_t *buf, uint8_t len)
+{
+    while (len--)
+        printf("%2x ", *(buf++));
+    printf("\n");
+}
+
 int main()
 {
     uint8_t version;
+    Uid card;
     if (wiringPiSetupGpio() == -1)
     {
         printf("GPIO init failed.\n");
@@ -15,6 +23,17 @@ int main()
     PCD_Init();
     version = PCD_Version();
     printf("Version: %x\n", version);
+
+    while (1)
+    {
+        if (PICC_IsNewCardPresent() && (PICC_Select(&card, 0) == STATUS_OK))
+        {
+            printf("newcard\n");
+            print_hex(card.uidByte, card.size);
+        }
+        delay(300);
+    }
+
     PCD_Deinit();
     return 0;
 }
