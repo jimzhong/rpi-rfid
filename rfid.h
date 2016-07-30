@@ -24,6 +24,8 @@ int PICC_Select(
 	byte validBits		///< The number of known UID bits supplied in *uid. Normally 0. If set you must also supply uid->size.
 );
 
+int PICC_IsNewCardPresent();
+
 //Mid level functions
 void PCD_AntennaOn();
 void PCD_AntennaOff();
@@ -59,6 +61,17 @@ int PCD_TransceiveData(
 	byte rxAlign,		///< In: Defines the bit position in backData[0] for the first bit received. Default 0.
 	bool checkCRC		///< In: True => The last two bytes of the response is assumed to be a CRC_A that must be validated.
 );
+
+int PICC_REQA_or_WUPA(
+    byte command, 		///< The command to send - PICC_CMD_REQA or PICC_CMD_WUPA
+	byte *bufferATQA,	///< The buffer to store the ATQA (Answer to request) in
+    byte *bufferSize	///< Buffer size, at least two bytes. Also number of bytes returned if STATUS_OK.
+);
+
+int PICC_RequestA(
+    byte *bufferATQA,	///< The buffer to store the ATQA (Answer to request) in
+	byte *bufferSize	///< Buffer size, at least two bytes. Also number of bytes returned if STATUS_OK.
+)
 
 
 //Low level functions

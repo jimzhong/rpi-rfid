@@ -506,3 +506,44 @@ int PCD_TransceiveData(
 	byte waitIRq = 0x30;		// RxIRq and IdleIRq
 	return PCD_CommunicateWithPICC(PCD_Transceive, waitIRq, sendData, sendLen, backData, backLen, validBits, rxAlign, checkCRC);
 } // End PCD_TransceiveData()
+
+
+int PICC_IsNewCardPresent()
+{
+	byte bufferATQA[2];
+	byte bufferSize = sizeof(bufferATQA);
+	int result = PICC_RequestA(bufferATQA, &bufferSize);
+	return (result == STATUS_OK || result == STATUS_COLLISION);
+} // End PICC_IsNewCardPresent()
+
+int PICC_RequestA(
+    byte *bufferATQA,	///< The buffer to store the ATQA (Answer to request) in
+	byte *bufferSize	///< Buffer size, at least two bytes. Also number of bytes returned if STATUS_OK.
+)
+{
+	return PICC_REQA_or_WUPA(PICC_CMD_REQA, bufferATQA, bufferSize);
+} // End PICC_RequestA()
+
+int PICC_REQA_or_WUPA(
+    byte command, 		///< The command to send - PICC_CMD_REQA or PICC_CMD_WUPA
+	byte *bufferATQA,	///< The buffer to store the ATQA (Answer to request) in
+    byte *bufferSize	///< Buffer size, at least two bytes. Also number of bytes returned if STATUS_OK.
+)
+{
+	byte validBits;
+	int status;
+
+	if (bufferATQA == NULL || *bufferSize < 2)	// The ATQA response is 2 bytes long.
+		return STATUS_NO_ROOM;
+
+	PCD_ClearRegisterBitMask(CollReg, 0x80);		// ValuesAfterColl=1 => Bits received after collision are cleared.
+	validBits = 7;									// For REQA and WUPA we need the short frame format - transmit only 7 bits of the last (and only) byte. TxLastBits = BitFramingReg[2..0]
+	status = PCD_TransceiveData(&command, 1, bufferATQA, bufferSize, &validBits, 0, FALSE);
+	if (status != STATUS_OK) {
+		return status;
+	}
+	if (*bufferSize != 2 || validBits != 0) {		// ATQA must be exactly 16 bits.
+		return STATUS_ERROR;
+	}
+	return STATUS_OK;
+} // End PICC_REQA_or_WUPA()
