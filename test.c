@@ -12,6 +12,7 @@ int main()
         printf("GPIO init failed.\n");
         exit(-1);
     }
+    SPI_init();
     PCD_init();
     version = PCD_version();
     printf("Version: %x\n", version);
