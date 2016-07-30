@@ -205,7 +205,7 @@ int PICC_Select(
 	// Repeat Cascade Level loop until we have a complete UID.
 	uidComplete = TRUE;
 	while (!uidComplete) {
-        printf("cascadeLevel = %s\n", cascadeLevel);
+        printf("cascadeLevel = %u\n", cascadeLevel);
 		// Set the Cascade Level in the SEL byte, find out if we need to use the Cascade Tag in byte 2.
 		switch (cascadeLevel) {
 			case 1:
