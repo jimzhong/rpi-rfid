@@ -4,8 +4,6 @@
 #include <stdint.h>
 
 #define PIN_RST  26
-#define FALSE 0
-#define TRUE  1
 
 typedef uint8_t byte;
 typedef uint8_t bool;
