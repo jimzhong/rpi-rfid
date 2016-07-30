@@ -5,7 +5,7 @@
 
 #define PIN_RST  26
 
-typedef byte byte;
+typedef uint8_t byte;
 typedef byte bool;
 
 typedef struct {

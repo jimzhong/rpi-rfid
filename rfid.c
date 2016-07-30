@@ -577,7 +577,7 @@ int PICC_HaltA()
 	//		If the PICC responds with any modulation during a period of 1 ms after the end of the frame containing the
 	//		HLTA command, this response shall be interpreted as 'not acknowledge'.
 	// We interpret that this way: Only STATUS_TIMEOUT is a success.
-	result = PCD_TransceiveData(buffer, sizeof(buffer), NULL, 0, 0, 0);
+	result = PCD_TransceiveData(buffer, sizeof(buffer), NULL, 0, NULL, 0, FALSE);
 	if (result == STATUS_TIMEOUT) {
 		return STATUS_OK;
 	}
