@@ -5,18 +5,57 @@
 
 #define PIN_RST  26
 
-//High level functions
-void PCD_init();
-void PCD_deinit();
-uint8_t PCD_version();
+typedef uint8_t byte;
+typedef uint8_t bool;
 
+typedef struct {
+    byte		size;			// Number of bytes in the UID. 4, 7 or 10.
+    byte		uidByte[10];
+    byte		sak;			// The SAK (Select acknowledge) byte returned from the PICC after successful selection.
+} uid_t;
+
+//High level functions
+void PCD_Init();
+void PCD_Deinit();
+uint8_t PCD_Version();
+
+int PICC_Select(uid_t *uid);
 
 //Mid level functions
 void PCD_AntennaOn();
 void PCD_AntennaOff();
 
-void PCD_hard_reset();
-void PCD_soft_reset();
+void PCD_HardReset();
+void PCD_SoftReset();
+
+int PCD_CalculateCRC(
+    byte *data,		///< In: Pointer to the data to transfer to the FIFO for CRC calculation.
+    byte length,	///< In: The number of bytes to transfer.
+	byte *result	///< Out: Pointer to result buffer. Result is written to result[0..1], low byte first.
+);
+
+
+int PCD_CommunicateWithPICC(
+    byte command,		///< The command to execute. One of the PCD_Command enums.
+	byte waitIRq,		///< The bits in the ComIrqReg register that signals successful completion of the command.
+	byte *sendData,		///< Pointer to the data to transfer to the FIFO.
+	byte sendLen,		///< Number of bytes to transfer to the FIFO.
+	byte *backData,		///< NULL or pointer to buffer if data should be read back after executing the command.
+	byte *backLen,		///< In: Max number of bytes to write to *backData. Out: The number of bytes returned.
+	byte *validBits,	///< In/Out: The number of valid bits in the last byte. 0 for 8 valid bits.
+	byte rxAlign,		///< In: Defines the bit position in backData[0] for the first bit received. Default 0.
+	bool checkCRC		///< In: True => The last two bytes of the response is assumed to be a CRC_A that must be validated.
+);
+
+PCD_TransceiveData(
+    byte *sendData,		///< Pointer to the data to transfer to the FIFO.
+	byte sendLen,		///< Number of bytes to transfer to the FIFO.
+	byte *backData,		///< NULL or pointer to buffer if data should be read back after executing the command.
+	byte *backLen,		///< In: Max number of bytes to write to *backData. Out: The number of bytes returned.
+	byte *validBits,	///< In/Out: The number of valid bits in the last byte. 0 for 8 valid bits. Default NULL.
+	byte rxAlign,		///< In: Defines the bit position in backData[0] for the first bit received. Default 0.
+	bool checkCRC		///< In: True => The last two bytes of the response is assumed to be a CRC_A that must be validated.
+);
 
 
 //Low level functions
@@ -25,6 +64,9 @@ void PCD_WriteRegister(uint8_t reg, uint8_t value);
 
 void PCD_SetRegisterBitMask(uint8_t reg, uint8_t mask);
 void PCD_ClearRegisterBitMask(uint8_t reg, uint8_t mask);
+
+void PCD_WriteRegisterFromBuffer(uint8_t reg, uint8_t len, uint8_t *buf);
+void PCD_ReadRegisterToBuffer(uint8_t reg, uint8_t len, uint8_t *buf, uint8_t rxAlign);
 
 
 //MFRC522 Registers
@@ -124,6 +166,14 @@ void PCD_ClearRegisterBitMask(uint8_t reg, uint8_t mask);
 // The PICC_CMD_MF_READ and PICC_CMD_MF_WRITE can also be used for MIFARE Ultralight.
 #define	PICC_CMD_UL_WRITE		 0xA2		// Writes one 4 byte page to the PICC.
 
-
+#define STATUS_OK   0
+#define STATUS_ERROR    1
+#define STATUS_COLLISION    2
+#define STATUS_TIMEOUT  3
+#define STATUS_NO_ROOM  4
+#define STATUS_INTERNAL_ERROR   5
+#define STATUS_INVALID  6
+#define STATUS_CRC_WRONG    7
+#define STATUS_MIFARE_NACK  255
 
 #endif
