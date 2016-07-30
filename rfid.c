@@ -25,9 +25,9 @@ void PCD_Reset()
 }
 
 
-uint8_t PCD_ReadRegister(uint8_t reg)
+byte PCD_ReadRegister(byte reg)
 {
-    uint8_t value;
+    byte value;
     SPI_begin_transaction();
 	SPI_transfer(0x80 | (reg & 0x7E));			// MSB == 1 is for reading. LSB is not used in address.
 	value = SPI_transfer(0);					// Read the value back. Send 0 to stop reading.
@@ -36,7 +36,7 @@ uint8_t PCD_ReadRegister(uint8_t reg)
 	return value;
 }
 
-void PCD_ReadRegisterToBuffer(uint8_t reg, uint8_t len, uint8_t *buf, uint8_t rxAlign)
+void PCD_ReadRegisterToBuffer(byte reg, byte len, byte *buf, byte rxAlign)
 {
 	byte address = 0x80 | (reg & 0x7E);		// MSB == 1 is for reading. LSB is not used in address. Datasheet section 8.1.2.3.
 	byte index = 0;							// Index in buf array.
@@ -72,7 +72,7 @@ void PCD_ReadRegisterToBuffer(uint8_t reg, uint8_t len, uint8_t *buf, uint8_t rx
 	SPI_end_transaction();
 }
 
-void PCD_WriteRegisterFromBuffer(uint8_t reg, uint8_t len, uint8_t *buf)
+void PCD_WriteRegisterFromBuffer(byte reg, byte len, byte *buf)
 {
     SPI_begin_transaction();
 	SPI_transfer(reg & 0x7E);			// MSB == 1 is for reading. LSB is not used in address.
@@ -81,7 +81,7 @@ void PCD_WriteRegisterFromBuffer(uint8_t reg, uint8_t len, uint8_t *buf)
 	SPI_end_transaction();
 }
 
-void PCD_WriteRegister(uint8_t reg, uint8_t value)
+void PCD_WriteRegister(byte reg, byte value)
 {
     // printf("write %x to %x.\n", value, reg);
     SPI_begin_transaction();
@@ -90,23 +90,23 @@ void PCD_WriteRegister(uint8_t reg, uint8_t value)
 	SPI_end_transaction();
 }
 
-void PCD_SetRegisterBitMask(uint8_t reg, uint8_t mask)
+void PCD_SetRegisterBitMask(byte reg, byte mask)
 {
-	uint8_t tmp;
+	byte tmp;
 	tmp = PCD_ReadRegister(reg);
 	PCD_WriteRegister(reg, tmp | mask);			// set bit mask
 }
 
-void PCD_ClearRegisterBitMask(uint8_t reg, uint8_t mask)
+void PCD_ClearRegisterBitMask(byte reg, byte mask)
 {
-    uint8_t tmp;
+    byte tmp;
     tmp = PCD_ReadRegister(reg);
     PCD_WriteRegister(reg, tmp & (~mask));		// clear bit mask
 }
 
 void PCD_AntennaOn()
 {
-    uint8_t value;
+    byte value;
     value = PCD_ReadRegister(TxControlReg);
     if ((value & 0x03) != 0x03)
         PCD_WriteRegister(TxControlReg, value | 0x03);
@@ -146,7 +146,7 @@ void PCD_Deinit()
     pinMode(PIN_RST, INPUT);
 }
 
-uint8_t PCD_Version()
+byte PCD_Version()
 {
     return PCD_ReadRegister(VersionReg);
 }
@@ -554,3 +554,35 @@ int PICC_REQA_or_WUPA(
 	}
 	return STATUS_OK;
 } // End PICC_REQA_or_WUPA()
+
+/**
+ * Instructs a PICC in state ACTIVE(*) to go to state HALT.
+ */
+int PICC_HaltA()
+{
+	int result;
+	byte buffer[4];
+
+	// Build command buffer
+	buffer[0] = PICC_CMD_HLTA;
+	buffer[1] = 0;
+	// Calculate CRC_A
+	result = PCD_CalculateCRC(buffer, 2, &buffer[2]);
+	if (result != STATUS_OK) {
+		return result;
+	}
+
+	// Send the command.
+	// The standard says:
+	//		If the PICC responds with any modulation during a period of 1 ms after the end of the frame containing the
+	//		HLTA command, this response shall be interpreted as 'not acknowledge'.
+	// We interpret that this way: Only STATUS_TIMEOUT is a success.
+	result = PCD_TransceiveData(buffer, sizeof(buffer), NULL, 0, 0, 0);
+	if (result == STATUS_TIMEOUT) {
+		return STATUS_OK;
+	}
+	if (result == STATUS_OK) { // That is ironically NOT ok in this case ;-)
+		return STATUS_ERROR;
+	}
+	return result;
+} // End PICC_HaltA()

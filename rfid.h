@@ -5,8 +5,8 @@
 
 #define PIN_RST  26
 
-typedef uint8_t byte;
-typedef uint8_t bool;
+typedef byte byte;
+typedef byte bool;
 
 typedef struct {
     byte		size;			// Number of bytes in the UID. 4, 7 or 10.
@@ -17,13 +17,13 @@ typedef struct {
 //High level functions
 void PCD_Init();
 void PCD_Deinit();
-uint8_t PCD_Version();
+byte PCD_Version();
 
 int PICC_Select(
     Uid *uid,			///< Pointer to Uid struct. Normally output, but can also be used to supply a known UID.
 	byte validBits		///< The number of known UID bits supplied in *uid. Normally 0. If set you must also supply uid->size.
 );
-
+int PICC_HaltA();
 int PICC_IsNewCardPresent();
 
 //Mid level functions
@@ -75,14 +75,14 @@ int PICC_RequestA(
 
 
 //Low level functions
-uint8_t PCD_ReadRegister(uint8_t reg);
-void PCD_WriteRegister(uint8_t reg, uint8_t value);
+byte PCD_ReadRegister(byte reg);
+void PCD_WriteRegister(byte reg, byte value);
 
-void PCD_SetRegisterBitMask(uint8_t reg, uint8_t mask);
-void PCD_ClearRegisterBitMask(uint8_t reg, uint8_t mask);
+void PCD_SetRegisterBitMask(byte reg, byte mask);
+void PCD_ClearRegisterBitMask(byte reg, byte mask);
 
-void PCD_WriteRegisterFromBuffer(uint8_t reg, uint8_t len, uint8_t *buf);
-void PCD_ReadRegisterToBuffer(uint8_t reg, uint8_t len, uint8_t *buf, uint8_t rxAlign);
+void PCD_WriteRegisterFromBuffer(byte reg, byte len, byte *buf);
+void PCD_ReadRegisterToBuffer(byte reg, byte len, byte *buf, byte rxAlign);
 
 
 //MFRC522 Registers
