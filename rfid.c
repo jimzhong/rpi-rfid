@@ -438,7 +438,7 @@ int PCD_CommunicateWithPICC(
 	// Wait for the command to complete.
 	// In PCD_Init() we set the TAuto flag in TModeReg. This means the timer automatically starts when the PCD stops transmitting.
 	// Each iteration of the do-while-loop takes 17.86�s.
-	i = 2000;
+	i = 6000;
 	while (1) {
 		n = PCD_ReadRegister(ComIrqReg);	// ComIrqReg[7..0] bits are: Set1 TxIRq RxIRq IdleIRq HiAlertIRq LoAlertIRq ErrIRq TimerIRq
 		if (n & waitIRq) {					// One of the interrupts that signal success has been set.
@@ -613,7 +613,7 @@ int PCD_Authenticate(
 		sendData[8+i] = uid->uidByte[i];
 
 	// Start the authentication.
-	return PCD_CommunicateWithPICC(PCD_MFAuthent, waitIRq, &sendData[0], sizeof(sendData), NULL, NULL, NULL, 0, FALSE);
+	return PCD_CommunicateWithPICC(PCD_MFAuthent, waitIRq, sendData, sizeof(sendData), NULL, NULL, NULL, 0, FALSE);
 }
 
 void PCD_StopCrypto1()
