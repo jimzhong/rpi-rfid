@@ -1,3 +1,5 @@
+all: test
+
 bitspi.o: bitspi.c bitspi.h
 	gcc -Wall -c bitspi.c
 
