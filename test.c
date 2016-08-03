@@ -15,7 +15,9 @@ void print_hex(uint8_t *buf, uint8_t len)
 int main()
 {
     uint8_t version;
-    Uid previous, current;
+    Uid current;
+    MIFARE_Key key = {};
+
     if (wiringPiSetupGpio() == -1)
     {
         printf("GPIO init failed.\n");
@@ -25,21 +27,21 @@ int main()
     version = PCD_Version();
     printf("Version: %x\n", version);
 
-    memset(&previous, 0, sizeof(previous));
-
     while (1)
     {
         if (PICC_IsNewCardPresent() && (PICC_Select(&current, 0) == STATUS_OK))
         {
             printf("new card: %lx.\n", *(unsigned long *)current.uidByte);
-            PICC_HaltA();
+            break;
         }
         else
         {
             printf("no new card.\n");
         }
-        delay(100);
+        delay(200);
     }
+
+    PICC_DumpMifareClassic(&current, PICC_GetType(current.sak), &key);
 
     PCD_Deinit();
     return 0;
