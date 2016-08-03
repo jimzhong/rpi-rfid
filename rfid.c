@@ -445,10 +445,12 @@ int PCD_CommunicateWithPICC(
 			break;
 		}
 		if (n & 0x01) {						// Timer interrupt - nothing received in 25ms
+            printf("timer expired.");
 			return STATUS_TIMEOUT;
 		}
 		if (--i == 0) {						// The emergency break. If all other conditions fail we will eventually terminate on this one after 35.7ms. Communication with the MFRC522 might be down.
-			return STATUS_TIMEOUT;
+            printf("counter expired.");
+            return STATUS_TIMEOUT;
 		}
 	}
 
