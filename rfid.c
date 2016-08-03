@@ -1,7 +1,8 @@
-// #include <wiringPi.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <wiringPi.h>
 
 #include "rfid.h"
 #include "bitspi.h"
