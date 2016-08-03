@@ -1,7 +1,7 @@
-#include <wiringPi.h>
+// #include <wiringPi.h>
 #include <stdio.h>
 #include <stdlib.h>
-// #include <string.h>
+#include <string.h>
 
 #include "rfid.h"
 #include "bitspi.h"
@@ -9,7 +9,6 @@
 void PCD_HardReset()
 {
     digitalWrite(PIN_RST, LOW);
-    // printf("hard reset.\n");
     //hold RST down for 50 msecs
     delay(50);
     digitalWrite(PIN_RST, HIGH);
@@ -77,7 +76,9 @@ void PCD_WriteRegisterFromBuffer(byte reg, byte len, byte *buf)
     SPI_begin_transaction();
 	SPI_transfer(reg & 0x7E);			// MSB == 1 is for reading. LSB is not used in address.
     while (len--)
+    {
         SPI_transfer(*(buf++));
+    }
 	SPI_end_transaction();
 }
 
@@ -262,7 +263,7 @@ int PICC_Select(
             // printf("selecting.\n");
 			// Find out how many bits and bytes to send and receive.
 			if (currentLevelKnownBits >= 32) { // All UID bits in this Cascade Level are known. This is a SELECT.
-				//Serial.print(F("SELECT: currentLevelKnownBits=")); Serial.println(currentLevelKnownBits, DEC);
+				//printf(F("SELECT: currentLevelKnownBits=")); Serial.println(currentLevelKnownBits, DEC);
 				buffer[1] = 0x70; // NVB - Number of Valid Bits: Seven whole bytes
 				// Calculate BCC - Block Check Character
 				buffer[6] = buffer[2] ^ buffer[3] ^ buffer[4] ^ buffer[5];
@@ -278,7 +279,7 @@ int PICC_Select(
 				responseLength	= 3;
 			}
 			else { // This is an ANTICOLLISION.
-				//Serial.print(F("ANTICOLLISION: currentLevelKnownBits=")); Serial.println(currentLevelKnownBits, DEC);
+				//printf(F("ANTICOLLISION: currentLevelKnownBits=")); Serial.println(currentLevelKnownBits, DEC);
 				txLastBits		= currentLevelKnownBits % 8;
 				count			= currentLevelKnownBits / 8;	// Number of whole bytes in the UID part.
 				index			= 2 + count;					// Number of whole bytes: SEL + NVB + UIDs
@@ -586,3 +587,365 @@ int PICC_HaltA()
 	}
 	return result;
 } // End PICC_HaltA()
+
+
+int PCD_Authenticate(
+    byte command,		///< PICC_CMD_MF_AUTH_KEY_A or PICC_CMD_MF_AUTH_KEY_B
+	byte blockAddr, 	///< The block number. See numbering in the comments in the .h file.
+	MIFARE_Key *key,	///< Pointer to the Crypteo1 key to use (6 bytes)
+	Uid *uid			///< Pointer to Uid struct. The first 4 bytes of the UID is used.
+)
+{
+	byte waitIRq = 0x10;		// IdleIRq
+
+	// Build command buffer
+	byte sendData[12];
+	sendData[0] = command;
+	sendData[1] = blockAddr;
+	for (byte i = 0; i < MF_KEY_SIZE; i++) {	// 6 key bytes
+		sendData[2+i] = key->keyByte[i];
+	}
+	for (byte i = 0; i < 4; i++) {				// The first 4 bytes of the UID
+		sendData[8+i] = uid->uidByte[i];
+	}
+
+	// Start the authentication.
+	return PCD_CommunicateWithPICC(PCD_MFAuthent, waitIRq, &sendData[0], sizeof(sendData), NULL, NULL, NULL, 0, FALSE);
+}
+
+void PCD_StopCrypto1()
+{
+	// Clear MFCrypto1On bit
+	PCD_ClearRegisterBitMask(Status2Reg, 0x08);
+}
+
+int MIFARE_Read(
+    byte blockAddr, 	///< MIFARE Classic: The block (0-0xff) number. MIFARE Ultralight: The first page to return data from.
+	byte *buffer,		///< The buffer to store the data in
+	byte *bufferSize	///< Buffer size, at least 18 bytes. Also number of bytes returned if STATUS_OK.
+)
+{
+	int result;
+	// Sanity check
+	if (buffer == NULL || *bufferSize < 18)
+		return STATUS_NO_ROOM;
+	// Build command buffer
+	buffer[0] = PICC_CMD_MF_READ;
+	buffer[1] = blockAddr;
+	// Calculate CRC_A
+	result = PCD_CalculateCRC(buffer, 2, &buffer[2]);
+	if (result != STATUS_OK)
+		return result;
+	// Transmit the buffer and receive the response, validate CRC_A.
+	return PCD_TransceiveData(buffer, 4, buffer, bufferSize, NULL, 0, TRUE);
+}
+
+
+int MIFARE_Write(
+    byte blockAddr, ///< MIFARE Classic: The block (0-0xff) number. MIFARE Ultralight: The page (2-15) to write to.
+	byte *buffer,	///< The 16 bytes to write to the PICC
+	byte bufferSize	///< Buffer size, must be at least 16 bytes. Exactly 16 bytes are written.
+)
+{
+	int result;
+	// Sanity check
+	if (buffer == NULL || bufferSize < 16)
+		return STATUS_INVALID;
+
+	// Mifare Classic protocol requires two communications to perform a write.
+	// Step 1: Tell the PICC we want to write to block blockAddr.
+	byte cmdBuffer[2];
+	cmdBuffer[0] = PICC_CMD_MF_WRITE;
+	cmdBuffer[1] = blockAddr;
+	result = PCD_MIFARE_Transceive(cmdBuffer, 2, FALSE); // Adds CRC_A and checks that the response is MF_ACK.
+	if (result != STATUS_OK)
+		return result;
+
+	// Step 2: Transfer the data
+	result = PCD_MIFARE_Transceive(buffer, bufferSize, FALSE); // Adds CRC_A and checks that the response is MF_ACK.
+	if (result != STATUS_OK)
+		return result;
+
+	return STATUS_OK;
+}
+
+
+int PCD_MIFARE_Transceive(
+    byte *sendData,		///< Pointer to the data to transfer to the FIFO. Do NOT include the CRC_A.
+	byte sendLen,		///< Number of bytes in sendData.
+	bool acceptTimeout	///< True => A timeout is also success
+)
+{
+	int result;
+	byte cmdBuffer[18]; // We need room for 16 bytes data and 2 bytes CRC_A.
+
+	// Sanity check
+	if (sendData == NULL || sendLen > 16)
+		return STATUS_INVALID;
+
+	// Copy sendData[] to cmdBuffer[] and add CRC_A
+	memcpy(cmdBuffer, sendData, sendLen);
+	result = PCD_CalculateCRC(cmdBuffer, sendLen, &cmdBuffer[sendLen]);
+	if (result != STATUS_OK)
+		return result;
+
+	sendLen += 2;
+
+	// Transceive the data, store the reply in cmdBuffer[]
+	byte waitIRq = 0x30;		// RxIRq and IdleIRq
+	byte cmdBufferSize = sizeof(cmdBuffer);
+	byte validBits = 0;
+	result = PCD_CommunicateWithPICC(PCD_Transceive, waitIRq, cmdBuffer, sendLen, cmdBuffer, &cmdBufferSize, &validBits, 0, FALSE);
+	if (acceptTimeout && result == STATUS_TIMEOUT) {
+		return STATUS_OK;
+	}
+	if (result != STATUS_OK) {
+		return result;
+	}
+	// The PICC must reply with a 4 bit ACK
+	if (cmdBufferSize != 1 || validBits != 4) {
+		return STATUS_ERROR;
+	}
+	if (cmdBuffer[0] != MF_ACK) {
+		return STATUS_MIFARE_NACK;
+	}
+	return STATUS_OK;
+} // End PCD_MIFARE_Transceive()
+
+
+int PICC_GetType(byte sak)
+{
+	// http://www.nxp.com/documents/application_note/AN10833.pdf
+	// 3.2 Coding of Select Acknowledge (SAK)
+	// ignore 8-bit (iso14443 starts with LSBit = bit 1)
+	// fixes wrong type for manufacturer Infineon (http://nfc-tools.org/index.php?title=ISO14443A)
+	sak &= 0x7F;
+	switch (sak)
+    {
+		case 0x04:	return PICC_TYPE_NOT_COMPLETE;	// UID not complete
+		case 0x09:	return PICC_TYPE_MIFARE_MINI;
+		case 0x08:	return PICC_TYPE_MIFARE_1K;
+		case 0x18:	return PICC_TYPE_MIFARE_4K;
+		case 0x00:	return PICC_TYPE_MIFARE_UL;
+		case 0x10:
+		case 0x11:	return PICC_TYPE_MIFARE_PLUS;
+		case 0x01:	return PICC_TYPE_TNP3XXX;
+		case 0x20:	return PICC_TYPE_ISO_14443_4;
+		case 0x40:	return PICC_TYPE_ISO_18092;
+		default:	return PICC_TYPE_UNKNOWN;
+	}
+}
+
+void PICC_DumpMifareClassic(
+    Uid *uid,			///< Pointer to Uid struct returned from a successful PICC_Select().
+	int piccType,	///< One of the PICC_Type enums.
+	MIFARE_Key *key		///< Key A used for all sectors.
+)
+{
+	byte no_of_sectors = 0;
+	switch (piccType) {
+		case PICC_TYPE_MIFARE_MINI:
+			// Has 5 sectors * 4 blocks/sector * 16 bytes/block = 320 bytes.
+			no_of_sectors = 5;
+			break;
+
+		case PICC_TYPE_MIFARE_1K:
+			// Has 16 sectors * 4 blocks/sector * 16 bytes/block = 1024 bytes.
+			no_of_sectors = 16;
+			break;
+
+		case PICC_TYPE_MIFARE_4K:
+			// Has (32 sectors * 4 blocks/sector + 8 sectors * 16 blocks/sector) * 16 bytes/block = 4096 bytes.
+			no_of_sectors = 40;
+			break;
+
+		default: // Should not happen. Ignore.
+			break;
+	}
+
+	// Dump sectors, highest address first.
+	if (no_of_sectors)
+    {
+		printf("Sector Block   0  1  2  3   4  5  6  7   8  9 10 11  12 13 14 15  AccessBits\n");
+        int8_t i;
+		for (i = no_of_sectors - 1; i >= 0; i--)
+			PICC_DumpMifareClassicSector(uid, key, i);
+	}
+	PICC_HaltA(); // Halt the PICC before stopping the encrypted session.
+	PCD_StopCrypto1();
+} // End PICC_DumpMifareClassicToSerial()
+
+int PICC_DumpMifareClassicSector(
+    Uid *uid,			///< Pointer to Uid struct returned from a successful PICC_Select().
+	MIFARE_Key *key,	///< Key A for the sector.
+	byte sector			///< The sector to dump, 0..39.
+)
+{
+	int status;
+	byte firstBlock;		// Address of lowest address to dump actually last block dumped)
+	byte no_of_blocks;		// Number of blocks in sector
+	bool isSectorTrailer;	// Set to true while handling the "last" (ie highest address) in the sector.
+
+	// The access bits are stored in a peculiar fashion.
+	// There are four groups:
+	//		g[3]	Access bits for the sector trailer, block 3 (for sectors 0-31) or block 15 (for sectors 32-39)
+	//		g[2]	Access bits for block 2 (for sectors 0-31) or blocks 10-14 (for sectors 32-39)
+	//		g[1]	Access bits for block 1 (for sectors 0-31) or blocks 5-9 (for sectors 32-39)
+	//		g[0]	Access bits for block 0 (for sectors 0-31) or blocks 0-4 (for sectors 32-39)
+	// Each group has access bits [C1 C2 C3]. In this code C1 is MSB and C3 is LSB.
+	// The four CX bits are stored together in a nible cx and an inverted nible cx_.
+	byte c1, c2, c3;		// Nibbles
+	byte c1_, c2_, c3_;		// Inverted nibbles
+	bool invertedError;		// True if one of the inverted nibbles did not match
+	byte g[4];				// Access bits for each of the four groups.
+	byte group;				// 0-3 - active group for access bits
+	bool firstInGroup;		// True for the first block dumped in the group
+
+	// Determine position and size of sector.
+	if (sector < 32) { // Sectors 0..31 has 4 blocks each
+		no_of_blocks = 4;
+		firstBlock = sector * no_of_blocks;
+	}
+	else if (sector < 40) { // Sectors 32-39 has 16 blocks each
+		no_of_blocks = 16;
+		firstBlock = 128 + (sector - 32) * no_of_blocks;
+	}
+	else { // Illegal input, no MIFARE Classic PICC has more than 40 sectors.
+		return STATUS_INVALID;
+	}
+
+	// Dump blocks, highest address first.
+	byte byteCount;
+	byte buffer[18];
+	byte blockAddr;
+    int8_t blockOffset;
+	isSectorTrailer = TRUE;
+
+	for (blockOffset = no_of_blocks - 1; blockOffset >= 0; blockOffset--)
+    {
+		blockAddr = firstBlock + blockOffset;
+		// Sector number - only on first line
+		if (isSectorTrailer)
+        {
+			if(sector < 10)
+				printf("   "); // Pad with spaces
+			else
+				printf("  "); // Pad with spaces
+			printf("%d", sector);
+			printf("   ");
+		}
+		else
+			printf("       ");
+
+		// Block number
+		if(blockAddr < 10)
+			printf("   "); // Pad with spaces
+		else {
+			if(blockAddr < 100)
+				printf("  "); // Pad with spaces
+			else
+				printf(" "); // Pad with spaces
+		}
+		printf("%d", blockAddr);
+		printf("  ");
+		// Establish encrypted communications before reading the first block
+		if (isSectorTrailer)
+        {
+			status = PCD_Authenticate(PICC_CMD_MF_AUTH_KEY_A, firstBlock, key, uid);
+			if (status != STATUS_OK)
+            {
+				printf("PCD_Authenticate() failed: ");
+				printf("%s\n", GetStatusCodeName(status));
+				return status;
+			}
+		}
+		// Read block
+		byteCount = sizeof(buffer);
+		status = MIFARE_Read(blockAddr, buffer, &byteCount);
+		if (status != STATUS_OK)
+        {
+			printf("MIFARE_Read() failed: %s\n", GetStatusCodeName(status));
+			continue;
+		}
+		// Dump data
+		for (byte index = 0; index < 16; index++)
+        {
+			if(buffer[index] < 0x10)
+				printf(" 0");
+			else
+				printf(" ");
+			printf("%x", buffer[index]);
+			if ((index % 4) == 3) {
+				printf(" ");
+			}
+		}
+		// Parse sector trailer data
+		if (isSectorTrailer)
+        {
+			c1  = buffer[7] >> 4;
+			c2  = buffer[8] & 0xF;
+			c3  = buffer[8] >> 4;
+			c1_ = buffer[6] & 0xF;
+			c2_ = buffer[6] >> 4;
+			c3_ = buffer[7] & 0xF;
+			invertedError = (c1 != (~c1_ & 0xF)) || (c2 != (~c2_ & 0xF)) || (c3 != (~c3_ & 0xF));
+			g[0] = ((c1 & 1) << 2) | ((c2 & 1) << 1) | ((c3 & 1) << 0);
+			g[1] = ((c1 & 2) << 1) | ((c2 & 2) << 0) | ((c3 & 2) >> 1);
+			g[2] = ((c1 & 4) << 0) | ((c2 & 4) >> 1) | ((c3 & 4) >> 2);
+			g[3] = ((c1 & 8) >> 1) | ((c2 & 8) >> 2) | ((c3 & 8) >> 3);
+			isSectorTrailer = FALSE;
+		}
+
+		// Which access group is this block in?
+		if (no_of_blocks == 4)
+        {
+			group = blockOffset;
+			firstInGroup = true;
+		}
+		else
+        {
+			group = blockOffset / 5;
+			firstInGroup = (group == 3) || (group != (blockOffset + 1) / 5);
+		}
+
+		if (firstInGroup)
+        {
+			// Print access bits
+			printf(" [ ");
+			printf("%d", (g[group] >> 2) & 1); printf(" ");
+			printf("%d", (g[group] >> 1) & 1); printf(" ");
+			printf("%d", (g[group] >> 0) & 1);
+			printf(" ] ");
+			if (invertedError)
+				printf(" Inverted access bits did not match! ");
+		}
+
+		if (group != 3 && (g[group] == 1 || g[group] == 6))
+        {
+            // Not a sector trailer, a value block
+			long value = ((long)(buffer[3])<<24) | ((long)(buffer[2])<<16) | ((long)(buffer[1])<<8) | (long)(buffer[0]);
+			printf(" Value=0x%lx", value);
+			printf(" Adr=0x%x", buffer[12]);
+		}
+		printf("\n");
+	}
+
+	return STATUS_OK;
+}
+
+char * GetStatusCodeName(int code)
+{
+	switch (code)
+    {
+		case STATUS_OK:				return "Success.";
+		case STATUS_ERROR:			return "Error in communication.";
+		case STATUS_COLLISION:		return "Collission detected.";
+		case STATUS_TIMEOUT:		return "Timeout in communication.";
+		case STATUS_NO_ROOM:		return "A buffer is not big enough.";
+		case STATUS_INTERNAL_ERROR:	return "Internal error in the code. Should not happen.";
+		case STATUS_INVALID:		return "Invalid argument.";
+		case STATUS_CRC_WRONG:		return "The CRC_A does not match.";
+		case STATUS_MIFARE_NACK:	return "A MIFARE PICC responded with NAK.";
+		default:					return "Unknown error";
+	}
+}

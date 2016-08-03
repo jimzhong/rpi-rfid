@@ -5,6 +5,10 @@
 
 #define PIN_RST  26
 
+//Mifare constants
+#define MF_KEY_SIZE  6
+#define MF_ACK   0xA
+
 typedef uint8_t byte;
 typedef byte bool;
 
@@ -13,6 +17,10 @@ typedef struct {
     byte		uidByte[10];
     byte		sak;			// The SAK (Select acknowledge) byte returned from the PICC after successful selection.
 } Uid;
+
+typedef struct {
+    byte		keyByte[MF_KEY_SIZE];
+} MIFARE_Key;
 
 //High level functions
 void PCD_Init();
@@ -26,6 +34,34 @@ int PICC_Select(
 int PICC_HaltA();
 int PICC_IsNewCardPresent();
 
+int MIFARE_Write(
+    byte blockAddr, ///< MIFARE Classic: The block (0-0xff) number. MIFARE Ultralight: The page (2-15) to write to.
+	byte *buffer,	///< The 16 bytes to write to the PICC
+	byte bufferSize	///< Buffer size, must be at least 16 bytes. Exactly 16 bytes are written.
+);
+
+int MIFARE_Read(
+    byte blockAddr, 	///< MIFARE Classic: The block (0-0xff) number. MIFARE Ultralight: The first page to return data from.
+	byte *buffer,		///< The buffer to store the data in
+	byte *bufferSize	///< Buffer size, at least 18 bytes. Also number of bytes returned if STATUS_OK.
+);
+
+int PICC_DumpMifareClassicSector(
+    Uid *uid,			///< Pointer to Uid struct returned from a successful PICC_Select().
+	MIFARE_Key *key,	///< Key A for the sector.
+	byte sector			///< The sector to dump, 0..39.
+);
+
+void PICC_DumpMifareClassic(
+    Uid *uid,			///< Pointer to Uid struct returned from a successful PICC_Select().
+	int piccType,	///< One of the PICC_Type enums.
+	MIFARE_Key *key		///< Key A used for all sectors.
+);
+
+
+int PICC_GetType(byte SAK);
+
+
 //Mid level functions
 void PCD_AntennaOn();
 void PCD_AntennaOff();
@@ -33,12 +69,28 @@ void PCD_AntennaOff();
 void PCD_HardReset();
 void PCD_Reset();
 
+char * GetStatusCodeName(int code);
+
+int PCD_Authenticate(
+    byte command,		///< PICC_CMD_MF_AUTH_KEY_A or PICC_CMD_MF_AUTH_KEY_B
+	byte blockAddr, 	///< The block number. See numbering in the comments in the .h file.
+	MIFARE_Key *key,	///< Pointer to the Crypteo1 key to use (6 bytes)
+	Uid *uid			///< Pointer to Uid struct. The first 4 bytes of the UID is used.
+);
+
+void PCD_StopCrypto1();
+
 int PCD_CalculateCRC(
     byte *data,		///< In: Pointer to the data to transfer to the FIFO for CRC calculation.
     byte length,	///< In: The number of bytes to transfer.
 	byte *result	///< Out: Pointer to result buffer. Result is written to result[0..1], low byte first.
 );
 
+int PCD_MIFARE_Transceive(
+    byte *sendData,		///< Pointer to the data to transfer to the FIFO. Do NOT include the CRC_A.
+	byte sendLen,		///< Number of bytes in sendData.
+	bool acceptTimeout	///< True => A timeout is also success
+);
 
 int PCD_CommunicateWithPICC(
     byte command,		///< The command to execute. One of the PCD_Command enums.
@@ -182,6 +234,8 @@ void PCD_ReadRegisterToBuffer(byte reg, byte len, byte *buf, byte rxAlign);
 // The PICC_CMD_MF_READ and PICC_CMD_MF_WRITE can also be used for MIFARE Ultralight.
 #define	PICC_CMD_UL_WRITE		 0xA2		// Writes one 4 byte page to the PICC.
 
+
+//Status code
 #define STATUS_OK   0
 #define STATUS_ERROR    1
 #define STATUS_COLLISION    2
@@ -191,5 +245,18 @@ void PCD_ReadRegisterToBuffer(byte reg, byte len, byte *buf, byte rxAlign);
 #define STATUS_INVALID  6
 #define STATUS_CRC_WRONG    7
 #define STATUS_MIFARE_NACK  255
+
+
+//PICC card type
+#define		PICC_TYPE_UNKNOWN		0
+#define		PICC_TYPE_ISO_14443_4	1	// PICC compliant with ISO/IEC 14443-4
+#define		PICC_TYPE_ISO_18092		2 	// PICC compliant with ISO/IEC 18092 (NFC)
+#define		PICC_TYPE_MIFARE_MINI	3	// MIFARE Classic protocol 320 bytes
+#define		PICC_TYPE_MIFARE_1K		4	// MIFARE Classic protocol 1KB
+#define		PICC_TYPE_MIFARE_4K		5	// MIFARE Classic protocol 4KB
+#define		PICC_TYPE_MIFARE_UL		6	// MIFARE Ultralight or Ultralight C
+#define		PICC_TYPE_MIFARE_PLUS	7	// MIFARE Plus
+#define		PICC_TYPE_TNP3XXX		8	// Only mentioned in NXP AN 10833 MIFARE Type Identification Procedure
+#define		PICC_TYPE_NOT_COMPLETE	255	// SAK indicates UID is not complete.
 
 #endif
