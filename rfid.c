@@ -598,17 +598,19 @@ int PCD_Authenticate(
 )
 {
 	byte waitIRq = 0x10;		// IdleIRq
+    byte i;
 
 	// Build command buffer
 	byte sendData[12];
 	sendData[0] = command;
 	sendData[1] = blockAddr;
-	for (byte i = 0; i < MF_KEY_SIZE; i++) {	// 6 key bytes
+	for (i = 0; i < MF_KEY_SIZE; i++)
+    	// 6 key bytes
 		sendData[2+i] = key->keyByte[i];
-	}
-	for (byte i = 0; i < 4; i++) {				// The first 4 bytes of the UID
+
+	for (i = 0; i < 4; i++)
+        // The first 4 bytes of the UID
 		sendData[8+i] = uid->uidByte[i];
-	}
 
 	// Start the authentication.
 	return PCD_CommunicateWithPICC(PCD_MFAuthent, waitIRq, &sendData[0], sizeof(sendData), NULL, NULL, NULL, 0, FALSE);
@@ -869,7 +871,8 @@ int PICC_DumpMifareClassicSector(
 			continue;
 		}
 		// Dump data
-		for (byte index = 0; index < 16; index++)
+        byte index;
+		for (index = 0; index < 16; index++)
         {
 			if(buffer[index] < 0x10)
 				printf(" 0");
@@ -901,7 +904,7 @@ int PICC_DumpMifareClassicSector(
 		if (no_of_blocks == 4)
         {
 			group = blockOffset;
-			firstInGroup = true;
+			firstInGroup = TRUE;
 		}
 		else
         {
